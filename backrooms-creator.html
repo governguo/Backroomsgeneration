@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>后室条目创造器 / Backrooms Level Generator</title>
+<style>
+  :root{
+    --bg:#1a1812;
+    --bg2:#0f0d08;
+    --wall:#d4b85a;
+    --wall-dark:#8a7530;
+    --carpet:#5a4a2a;
+    --text:#e8d99a;
+    --text-dim:#a89968;
+    --danger:#c44;
+    --warn:#e89938;
+    --safe:#6a8;
+    --border:#3a3220;
+    --tile:#2a2418;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Courier New","Microsoft YaHei",monospace;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  body{
+    background-image:
+      repeating-linear-gradient(0deg, rgba(212,184,90,.03) 0 2px, transparent 2px 4px),
+      radial-gradient(ellipse at top, #2a2418 0%, var(--bg) 60%);
+    padding:16px;
+  }
+  .flicker{animation:flicker 8s infinite}
+  @keyframes flicker{
+    0%,98%,100%{opacity:1}
+    97%{opacity:.6}
+    97.5%{opacity:.9}
+  }
+  header{
+    text-align:center;
+    padding:20px 10px;
+    border:2px dashed var(--wall-dark);
+    margin-bottom:20px;
+    background:rgba(0,0,0,.3);
+  }
+  header h1{
+    font-size:clamp(20px,5vw,32px);
+    color:var(--wall);
+    letter-spacing:2px;
+    text-shadow:0 0 10px rgba(212,184,90,.4);
+  }
+  header p{
+    color:var(--text-dim);
+    font-size:13px;
+    margin-top:8px;
+  }
+  .layout{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+    max-width:1400px;
+    margin:0 auto;
+  }
+  @media(max-width:900px){
+    .layout{grid-template-columns:1fr}
+  }
+  .panel{
+    background:rgba(15,13,8,.85);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:14px;
+  }
+  .panel h2{
+    font-size:15px;
+    color:var(--wall);
+    border-bottom:1px solid var(--border);
+    padding-bottom:8px;
+    margin-bottom:12px;
+    letter-spacing:1px;
+  }
+  .field{margin-bottom:12px}
+  .field label{
+    display:block;
+    font-size:12px;
+    color:var(--text-dim);
+    margin-bottom:4px;
+    letter-spacing:1px;
+  }
+  input[type=text],input[type=number],select,textarea{
+    width:100%;
+    background:var(--tile);
+    color:var(--text);
+    border:1px solid var(--border);
+    padding:8px 10px;
+    font-family:inherit;
+    font-size:14px;
+    border-radius:2px;
+  }
+  input:focus,select:focus,textarea:focus{
+    outline:none;
+    border-color:var(--wall);
+    box-shadow:0 0 6px rgba(212,184,90,.3);
+  }
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .row>*{flex:1;min-width:120px}
+  .chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    max-height:200px;
+    overflow-y:auto;
+    padding:6px;
+    background:var(--bg2);
+    border:1px solid var(--border);
+    border-radius:2px;
+  }
+  .chip{
+    background:var(--tile);
+    color:var(--text-dim);
+    border:1px solid var(--border);
+    padding:5px 10px;
+    font-size:12px;
+    cursor:pointer;
+    border-radius:14px;
+    transition:.15s;
+    user-select:none;
+  }
+  .chip:hover{background:var(--carpet);color:var(--text)}
+  .chip.active{
+    background:var(--wall-dark);
+    color:#fff;
+    border-color:var(--wall);
+  }
+  .chip.cat-entity.active{background:#8a3a3a;border-color:#c44}
+  .chip.cat-phenom.active{background:#3a5a8a;border-color:#5a8acc}
+  .chip.cat-feature.active{background:#6a4a8a;border-color:#9a7acc}
+  .chip.cat-resource.active{background:#3a7a4a;border-color:#5aac6a}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;font-size:11px}
+  .legend span{display:flex;align-items:center;gap:4px;color:var(--text-dim)}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .btn{
+    background:var(--wall-dark);
+    color:#fff;
+    border:none;
+    padding:10px 18px;
+    cursor:pointer;
+    font-family:inherit;
+    font-size:14px;
+    letter-spacing:1px;
+    border-radius:2px;
+    transition:.15s;
+  }
+  .btn:hover{background:var(--wall);color:#000}
+  .btn.secondary{background:var(--tile);color:var(--text);border:1px solid var(--border)}
+  .btn.secondary:hover{background:var(--carpet);color:#fff}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .btn-row .btn{flex:1;min-width:100px}
+  /* Output styling — wikidot-like */
+  .article{
+    background:#fdfdf7;
+    color:#222;
+    padding:24px 20px;
+    border-radius:2px;
+    font-family:"Microsoft YaHei",Verdana,sans-serif;
+    font-size:14px;
+    line-height:1.7;
+    max-height:70vh;
+    overflow-y:auto;
+  }
+  .article h1.lvl-title{
+    font-size:24px;
+    text-align:center;
+    color:#900;
+    border-bottom:2px solid #900;
+    padding-bottom:8px;
+    margin-bottom:16px;
+  }
+  .article h2.sec{
+    font-size:17px;
+    color:#444;
+    border-bottom:1px solid #aaa;
+    margin:18px 0 8px;
+    padding-bottom:3px;
+  }
+  .article p{margin:8px 0;text-align:justify}
+  .article .meta{
+    background:#f0ead2;
+    border:1px solid #c0b888;
+    padding:10px 14px;
+    margin-bottom:14px;
+    font-size:13px;
+  }
+  .article .meta div{margin:3px 0}
+  .article .danger-class{
+    display:inline-block;
+    padding:2px 8px;
+    color:#fff;
+    font-weight:bold;
+    border-radius:2px;
+    margin-right:6px;
+  }
+  .dc-safe{background:#3a8a3a}
+  .dc-unsafe{background:#e89938}
+  .dc-danger{background:#c44}
+  .dc-extreme{background:#000}
+  .article blockquote{
+    border-left:3px solid #c0b888;
+    padding:6px 12px;
+    background:#faf6e0;
+    margin:8px 0;
+    font-style:italic;
+    color:#555;
+  }
+  .article ul{margin:6px 0 6px 20px}
+  .empty-hint{
+    color:#999;
+    text-align:center;
+    padding:40px 20px;
+    font-style:italic;
+  }
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:6px;
+    margin-bottom:10px;
+  }
+  .stat{
+    background:var(--bg2);
+    border:1px solid var(--border);
+    padding:6px;
+    text-align:center;
+    border-radius:2px;
+  }
+  .stat .num{font-size:18px;color:var(--wall);font-weight:bold}
+  .stat .lbl{font-size:10px;color:var(--text-dim);letter-spacing:1px}
+  .toolbar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+  .search{flex:1;min-width:140px}
+  details{margin-top:8px}
+  details summary{
+    cursor:pointer;
+    color:var(--text-dim);
+    font-size:12px;
+    padding:4px 0;
+  }
+  /* Mobile tweaks */
+  @media(max-width:600px){
+    body{padding:8px}
+    .panel{padding:10px}
+    .article{padding:16px 12px;font-size:13px}
+    .article h1.lvl-title{font-size:20px}
+  }
+  /* Scrollbar */
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-track{background:var(--bg2)}
+  ::-webkit-scrollbar-thumb{background:var(--wall-dark);border-radius:4px}
+</style>
+</head>
+<body>
+
+<header class="flicker">
+  <h1>◇ 后室条目创造器 ◇</h1>
+  <p>BACKROOMS LEVEL GENERATOR — 通过叠加元素生成 Level 条目</p>
+</header>
+
+<div class="layout">
+
+  <!-- 左侧：构造面板 -->
+  <div class="panel">
+    <h2>▣ 构造面板</h2>
+
+    <div class="field">
+      <label>LEVEL 编号</label>
+      <div class="row">
+        <input type="text" id="lvlNum" placeholder="例：404 / !-23 / fun(-1)" value="">
+        <button class="btn secondary" onclick="randomNum()">随机</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>LEVEL 名称</label>
+      <input type="text" id="lvlName" placeholder="例：迷失之地、永恒办公室">
+    </div>
+
+    <div class="field">
+      <label>核心环境（基底）</label>
+      <select id="envBase">
+        <option value="office">无尽办公室（黄墙地毯）</option>
+        <option value="warehouse">巨型仓库</option>
+        <option value="suburb">郊区住宅</option>
+        <option value="parking">地下停车场</option>
+        <option value="hospital">废弃医院</option>
+        <option value="school">空荡校舍</option>
+        <option value="library">无垠图书馆</option>
+        <option value="forest">扭曲森林</option>
+        <option value="desert">沙漠之海</option>
+        <option value="ocean">无尽海洋</option>
+        <option value="city">空城街道</option>
+        <option value="subway">环形地铁</option>
+        <option value="mall">死寂商场</option>
+        <option value="void">纯白虚空</option>
+        <option value="darkness">绝对黑暗</option>
+        <option value="liminal">阈限走廊</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>危险等级</label>
+      <select id="danger">
+        <option value="safe">SAFE — 安全</option>
+        <option value="unsafe" selected>UNSAFE — 不安全</option>
+        <option value="danger">DANGER — 危险</option>
+        <option value="extreme">EXTREME — 极度危险</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>大小</label>
+      <select id="size">
+        <option value="small">小（数千平米）</option>
+        <option value="medium" selected>中（无法测量但有限）</option>
+        <option value="large">大（疑似无限）</option>
+        <option value="infinite">绝对无限</option>
+      </select>
+    </div>
+
+    <div class="legend">
+      <span><span class="dot" style="background:#c44"></span>实体</span>
+      <span><span class="dot" style="background:#5a8acc"></span>现象</span>
+      <span><span class="dot" style="background:#9a7acc"></span>特征</span>
+      <span><span class="dot" style="background:#5aac6a"></span>资源</span>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" class="search" id="chipSearch" placeholder="搜索元素..." oninput="filterChips()">
+      <button class="btn secondary" onclick="randomMix()">🎲 随机叠加</button>
+      <button class="btn secondary" onclick="clearChips()">清空</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="num" id="cnt-entity">0</div><div class="lbl">实体</div></div>
+      <div class="stat"><div class="num" id="cnt-phenom">0</div><div class="lbl">现象</div></div>
+      <div class="stat"><div class="num" id="cnt-feature">0</div><div class="lbl">特征</div></div>
+    </div>
+
+    <div class="field">
+      <label>实体（生物 / 异常居民）</label>
+      <div class="chips" id="chips-entity"></div>
+    </div>
+
+    <div class="field">
+      <label>现象（异常事件 / 物理规则）</label>
+      <div class="chips" id="chips-phenom"></div>
+    </div>
+
+    <div class="field">
+      <label>特征（环境细节 / 氛围）</label>
+      <div class="chips" id="chips-feature"></div>
+    </div>
+
+    <div class="field">
+      <label>资源 / 出入口</label>
+      <div class="chips" id="chips-resource"></div>
+    </div>
+
+    <details>
+      <summary>▾ 高级：自定义补充描述（可选）</summary>
+      <textarea id="customDesc" rows="3" placeholder="补充任何想要加入条目的细节..." style="margin-top:6px"></textarea>
+    </details>
+
+    <div class="btn-row">
+      <button class="btn" onclick="generate()">⚡ 生成条目</button>
+      <button class="btn secondary" onclick="copyArticle()">📋 复制</button>
+      <button class="btn secondary" onclick="downloadArticle()">💾 下载</button>
+    </div>
+  </div>
+
+  <!-- 右侧：输出面板 -->
+  <div class="panel">
+    <h2>▣ 条目预览</h2>
+    <div class="article" id="output">
+      <div class="empty-hint">
+        ◈ 选择基底环境，叠加实体、现象、特征 ◈<br>
+        ◈ 然后点击「生成条目」 ◈
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ============== 数据库（参考 backrooms-wiki-cn 风格） ============== */
+const DB = {
+  entity: [
+    {n:"猎犬",d:"形似拉长的犬科生物，速度极快，被发现后会主动追击。"},
+    {n:"笑魇",d:"在黑暗中露出巨大笑容的人形，通过模仿人类声音诱骗。"},
+    {n:"派对客",d:"扭曲的小丑形人形，出现时伴随刺耳笑声。"},
+    {n:"漫游者",d:"游荡其中的人类流浪者，可能是友好或敌对的。"},
+    {n:"切面者",d:"由肉块拼合而成的人形，行动缓慢但不可阻挡。"},
+    {n:"门面人",d:"伪装成普通人，但脸部会突然剥离的实体。"},
+    {n:"皮肤窃贼",d:"会窃取流浪者皮肤并伪装的瘦长生物。"},
+    {n:"无脸者",d:"穿西装的人形，没有面部特征，喜爱办公环境。"},
+    {n:"虫群",d:"由数百只小型虫类组成的集群意识。"},
+    {n:"窥视者",d:"墙壁中渗出的眼球，会持续凝视流浪者。"},
+    {n:"哭泣孩童",d:"哭声会引来其他敌对实体的幻象孩童。"},
+    {n:"伪友人",d:"伪装成熟人面孔的实体，话语会出现明显错误。"},
+    {n:"触手墙",d:"墙体生长出的肉质触手，会缓慢吞噬靠近者。"},
+    {n:"复制体",d:"完美复制流浪者外貌的实体，但行为机械僵硬。"},
+    {n:"低吟者",d:"看不见的低频声源，长时间暴露会导致精神崩溃。"},
+    {n:"纸人",d:"由扭曲文档拼合而成的薄片人形。"},
+    {n:"群居守卫",d:"穿着制服、机械重复巡逻的人形守卫。"},
+    {n:"霉斑",d:"具有自主意识的霉菌群落，能感染流浪者。"},
+    {n:"信徒",d:"过度沉浸于此层级的人类，已无法辨别现实。"},
+    {n:"光蛾",d:"被光源吸引、体型异常巨大的飞蛾，无害但密集。"}
+  ],
+  phenom: [
+    {n:"时间扭曲",d:"层内时间流速不固定，可能加快或停滞。"},
+    {n:"空间循环",d:"沿同一方向直行最终会回到起点。"},
+    {n:"非欧几何",d:"墙角与房间的角度违反常规几何法则。"},
+    {n:"声音延迟",d:"任何声响都会延迟数秒后才被听见。"},
+    {n:"重力异常",d:"局部重力方向不固定，可能侧向或反转。"},
+    {n:"记忆篡改",d:"流浪者会逐渐遗忘自己的来源与目的。"},
+    {n:"低语回响",d:"持续传来听不清内容的低语，似乎在叫人名。"},
+    {n:"光源闪烁",d:"日光灯不规律地频闪，黑暗瞬间出现实体。"},
+    {n:"墙体迁移",d:"墙壁会在无人观察时缓慢移动位置。"},
+    {n:"信号干扰",d:"所有电子设备出现雪花噪点与故障。"},
+    {n:"湿度饱和",d:"空气湿度极高，墙面渗水、地面打滑。"},
+    {n:"气味错乱",d:"持续闻到某种与环境无关的气味（血、香水等）。"},
+    {n:"梦境渗透",d:"在此层级入睡的人会做出预言性梦境。"},
+    {n:"水位波动",d:"莫名出现或消退的浅水，深度不断变化。"},
+    {n:"温度反转",d:"光照强处寒冷、阴影处温暖。"},
+    {n:"反射异常",d:"镜面或玻璃中的倒影与本体行为不一致。"},
+    {n:"文字错乱",d:"所有文字会缓慢自行重组成无意义符号。"},
+    {n:"色彩褪化",d:"环境色彩持续向单一色调收敛。"},
+    {n:"重复事件",d:"某段时间内的事件会循环重演若干次。"},
+    {n:"杏仁水浸出",d:"墙缝、管道中渗出杏仁水（一种安全饮料）。"}
+  ],
+  feature: [
+    {n:"黄色墙纸",d:"标志性单调黄色墙纸，部分剥落、霉斑。"},
+    {n:"潮湿地毯",d:"陈旧地毯持续吸水，散发霉味。"},
+    {n:"嗡鸣日光灯",d:"老式日光灯发出 60Hz 的持续电流声。"},
+    {n:"无窗结构",d:"完全无任何窗户，找不到外部参照。"},
+    {n:"无尽走廊",d:"狭长走廊，门扉密集排列。"},
+    {n:"未完工痕迹",d:"暴露的钢筋、未拆除的脚手架。"},
+    {n:"复制装饰",d:"完全相同的画作或盆栽以固定间隔重复出现。"},
+    {n:"灰白瓷砖",d:"病院风格的白色瓷砖墙地面。"},
+    {n:"异常静谧",d:"环境噪音被异常吸收，仅剩自身声响。"},
+    {n:"昏暗微光",d:"光线介于黄昏与黑暗之间，难以辨色。"},
+    {n:"塑料感空气",d:"空气中弥漫旧塑料、聚氨酯泡沫的气味。"},
+    {n:"巨大尺度",d:"门窗、家具尺寸明显大于常人需求。"},
+    {n:"镜像对称",d:"建筑高度对称，左右毫无差异。"},
+    {n:"水迹斑驳",d:"天花板出现陈年水渍与污痕。"},
+    {n:"金属嗡鸣",d:"远处传来周期性低频金属振动。"},
+    {n:"老式装潢",d:"陈设停留在 70-90 年代风格。"},
+    {n:"霓虹标识",d:"残留的、不再发光或闪烁的商业标识。"},
+    {n:"视野模糊",d:"远处景物呈现胶卷般颗粒与失焦感。"},
+    {n:"重复广播",d:"扬声器循环播放无法辨听的广播。"},
+    {n:"旧式家具",d:"成排陈旧办公椅、文件柜，蒙上灰尘。"}
+  ],
+  resource: [
+    {n:"杏仁水",d:"层内常见的安全可饮用液体，能恢复理智。"},
+    {n:"皇家果冻",d:"高营养凝胶状食物，可长期保存。"},
+    {n:"火柴与打火机",d:"对抗黑暗与部分实体的关键工具。"},
+    {n:"未启封罐头",d:"散落的、可食用的密封食品。"},
+    {n:"应急手电",d:"电力有限，常见于办公桌与抽屉中。"},
+    {n:"无线电",d:"偶尔接收到来自其他层级的杂音消息。"},
+    {n:"留言纸条",d:"前流浪者留下的警告或线索。"},
+    {n:"急救包",d:"基础医药用品，治疗轻伤。"},
+    {n:"地图残页",d:"绘制不完整的层级局部地图。"},
+    {n:"通向出口的门",d:"特定条件下出现的可通往其他层级的门。"},
+    {n:"裂缝/管道",d:"非常规的层间通道。"},
+    {n:"杏仁水井",d:"持续涌出杏仁水的稀有节点。"},
+    {n:"M.E.G. 前哨",d:"主要探险家小组（M.E.G.）建立的安全据点。"},
+    {n:"商队营地",d:"漫游商队休整与交易的临时点。"}
+  ]
+};
+
+const DANGER_INFO = {
+  safe:{name:"安全",cls:"dc-safe",desc:"环境基本稳定，实体活动罕见或可预测。"},
+  unsafe:{name:"不安全",cls:"dc-unsafe",desc:"存在不可预测的实体或异常事件。"},
+  danger:{name:"危险",cls:"dc-danger",desc:"高频敌对实体活动，进入需充分准备。"},
+  extreme:{name:"极度危险",cls:"dc-extreme",desc:"长时间停留几乎必然导致死亡或精神崩溃。"}
+};
+
+const ENV_DESC = {
+  office:"以泛黄的墙纸、潮湿的旧地毯、嗡嗡作响的荧光灯为标志的办公空间集合体",
+  warehouse:"由高耸货架与无人叉车构成的巨型仓储设施",
+  suburb:"模仿北美 20 世纪末郊区住宅的空旷街区",
+  parking:"由水泥柱与昏黄壁灯填满的无尽地下停车场",
+  hospital:"瓷砖反光的废弃医院，弥漫消毒水气味",
+  school:"模仿东亚校园风格的空教室与走廊",
+  library:"由高耸书架构成的、藏书种类不可考的图书馆",
+  forest:"由枯枝与人造树皮组成的、不分昼夜的森林",
+  desert:"由细沙覆盖、地平线扭曲的红黄色沙漠",
+  ocean:"无尽延伸、深度不可测的浅海平面",
+  city:"完全无车无人的城市街区，霓虹仍在闪烁",
+  subway:"循环连接、无终点的地铁站台与车厢",
+  mall:"灯光通明却毫无顾客的现代化商场",
+  void:"全方位均为纯白、缺乏景深参照的空白空间",
+  darkness:"光源无法穿透的绝对黑暗",
+  liminal:"在多种空间风格之间持续过渡的阈限走廊"
+};
+
+const SIZE_DESC = {
+  small:"层级范围有限，估计面积约数千至数万平方米。",
+  medium:"层级面积无法精确测量，但被认为存在边界。",
+  large:"目前的勘探结果显示该层级近乎无限，尚未发现任何边缘。",
+  infinite:"该层级被普遍认为在任意方向上严格无限延伸。"
+};
+
+/* ============== 渲染 chips ============== */
+const selected = {entity:new Set(),phenom:new Set(),feature:new Set(),resource:new Set()};
+
+function renderChips(){
+  for(const cat of Object.keys(DB)){
+    const box = document.getElementById('chips-'+cat);
+    box.innerHTML = '';
+    DB[cat].forEach((item,i)=>{
+      const c = document.createElement('div');
+      c.className = 'chip cat-'+cat;
+      c.textContent = item.n;
+      c.title = item.d;
+      c.dataset.cat = cat;
+      c.dataset.idx = i;
+      if(selected[cat].has(i)) c.classList.add('active');
+      c.onclick = ()=>toggle(cat,i,c);
+      box.appendChild(c);
+    });
+  }
+  updateStats();
+}
+function toggle(cat,i,el){
+  if(selected[cat].has(i)){selected[cat].delete(i);el.classList.remove('active')}
+  else{selected[cat].add(i);el.classList.add('active')}
+  updateStats();
+}
+function updateStats(){
+  document.getElementById('cnt-entity').textContent = selected.entity.size;
+  document.getElementById('cnt-phenom').textContent = selected.phenom.size;
+  document.getElementById('cnt-feature').textContent = selected.feature.size;
+}
+function filterChips(){
+  const q = document.getElementById('chipSearch').value.trim().toLowerCase();
+  document.querySelectorAll('.chip').forEach(c=>{
+    const t = c.textContent.toLowerCase()+' '+(c.title||'').toLowerCase();
+    c.style.display = (!q||t.includes(q)) ? '' : 'none';
+  });
+}
+function clearChips(){
+  for(const k of Object.keys(selected)) selected[k].clear();
+  renderChips();
+}
+function randomNum(){
+  const r = Math.random();
+  let v;
+  if(r<0.7) v = Math.floor(Math.random()*999);
+  else if(r<0.85) v = '!-' + Math.floor(Math.random()*99);
+  else v = 'fun('+(Math.floor(Math.random()*40)-10)+')';
+  document.getElementById('lvlNum').value = v;
+}
+function randomMix(){
+  clearChips();
+  const pickN = (arr,n)=>{const idx=[...arr.keys()].sort(()=>Math.random()-.5).slice(0,n);return idx};
+  pickN(DB.entity, 1+Math.floor(Math.random()*3)).forEach(i=>selected.entity.add(i));
+  pickN(DB.phenom, 2+Math.floor(Math.random()*3)).forEach(i=>selected.phenom.add(i));
+  pickN(DB.feature, 2+Math.floor(Math.random()*4)).forEach(i=>selected.feature.add(i));
+  pickN(DB.resource, 1+Math.floor(Math.random()*3)).forEach(i=>selected.resource.add(i));
+  // 随机环境
+  const env = document.getElementById('envBase');
+  env.selectedIndex = Math.floor(Math.random()*env.options.length);
+  // 随机危险等级
+  const dg = ['safe','unsafe','unsafe','danger','danger','extreme'];
+  document.getElementById('danger').value = dg[Math.floor(Math.random()*dg.length)];
+  if(!document.getElementById('lvlNum').value) randomNum();
+  renderChips();
+}
+
+/* ============== 生成条目 ============== */
+function pick(arr,cat){return [...arr].map(i=>DB[cat][i])}
+function joinList(items,sep='、'){return items.map(x=>x.n).join(sep)}
+
+function generate(){
+  const num = document.getElementById('lvlNum').value.trim() || '???';
+  const name = document.getElementById('lvlName').value.trim() || '未命名层级';
+  const env = document.getElementById('envBase').value;
+  const danger = document.getElementById('danger').value;
+  const size = document.getElementById('size').value;
+  const custom = document.getElementById('customDesc').value.trim();
+
+  const ents = pick(selected.entity,'entity');
+  const phs = pick(selected.phenom,'phenom');
+  const fts = pick(selected.feature,'feature');
+  const res = pick(selected.resource,'resource');
+
+  const di = DANGER_INFO[danger];
+  const envText = ENV_DESC[env];
+
+  // 描述段
+  let descParas = [];
+  let p1 = `Level ${num}「${name}」是后室已记录层级中的一处异常区域，整体表现为${envText}。`;
+  if(fts.length){
+    p1 += `层级内最显著的环境特征包括${joinList(fts)}，这些细节共同构成了该层级独有的氛围。`;
+  }
+  p1 += SIZE_DESC[size];
+  descParas.push(p1);
+
+  if(phs.length){
+    let p2 = `据 M.E.G. 勘探小组的多次报告，Level ${num} 内存在多种异常现象。`;
+    p2 += phs.map(x=>x.d).join('');
+    p2 += `这些现象之间可能存在相互关联，但其触发机制目前仍未被完全理解。`;
+    descParas.push(p2);
+  }
+  if(ents.length){
+    let p3 = `本层级内已确认存在的实体包括：${joinList(ents)}。`;
+    p3 += ents.map(x=>x.d).join('');
+    p3 += `流浪者在此层级活动时务必保持警惕，避免与上述实体发生不必要的接触。`;
+    descParas.push(p3);
+  }
+  if(custom){
+    descParas.push(custom);
+  }
+
+  // 入口
+  const entries = [
+    `在 Level ${randInt(0,10)} 的特定门扉后无截断地步行 30 分钟以上。`,
+    `在前一层级的潮湿走廊中"切出"（noclip）。`,
+    `在标准办公空间中长时间发呆并感到强烈的困倦。`,
+    `通过 Level ${randInt(0,200)} 内的一扇标记为"员工通道"的门进入。`,
+    `在停电瞬间穿越一面墙体。`,
+    `特定时间在镜面前低声重复自己的名字三次。`
+  ].sort(()=>Math.random()-.5).slice(0,2+Math.floor(Math.random()*2));
+
+  // 出口
+  const exits = [];
+  if(res.some(r=>r.n.includes('门'))){
+    exits.push(`层级中偶尔出现的、外观异于环境的木质门可通往 Level ${randInt(0,500)}。`);
+  }
+  exits.push(
+    `进入任意贴有"维修"标识的房间，并保持安静 10 分钟以上。`,
+    `沿着任意管道爬行至其尽头。`
+  );
+
+  // 资源
+  const resText = res.length
+    ? `<ul>${res.map(r=>`<li><b>${r.n}</b>：${r.d}</li>`).join('')}</ul>`
+    : `<p>本层级内尚未发现可被流浪者稳定利用的资源。</p>`;
+
+  // 殖民地
+  const groups = [
+    `<b>M.E.G. 前哨「${randName()}」</b>：常驻 ${randInt(3,15)} 名探险家，主要任务为绘制层级地图。`,
+    `<b>商队营地</b>：流动型贸易队伍偶尔在此设立临时集市。`,
+    `<b>独行者据点</b>：少数老练流浪者在此长期定居，拒绝与其他组织接触。`
+  ].sort(()=>Math.random()-.5).slice(0,1+Math.floor(Math.random()*2));
+
+  // 备注
+  const notes = [
+    `根据 M.E.G. 档案部 ${2010+randInt(0,16)} 年的简报，本层级的初次记录应追溯至一名流浪者从 Level ${randInt(0,10)} 意外切出后的描述。`,
+    `部分流浪者声称其曾在梦中预先到达过此层级，但此说法尚无可重复实验佐证。`,
+    `进入本层级前，建议携带至少 ${randInt(2,8)} L 杏仁水及一盏稳定光源。`
+  ].sort(()=>Math.random()-.5).slice(0,2);
+
+  // 渲染
+  const html = `
+    <h1 class="lvl-title">Level ${num} — 「${name}」</h1>
+    <div class="meta">
+      <div><span class="danger-class ${di.cls}">${di.name.toUpperCase()}</span>${di.desc}</div>
+      <div><b>大小：</b>${SIZE_DESC[size]}</div>
+      <div><b>已记录实体：</b>${ents.length || '暂无'}　<b>异常现象：</b>${phs.length || '暂无'}</div>
+    </div>
+
+    <h2 class="sec">描述</h2>
+    ${descParas.map(p=>`<p>${p}</p>`).join('')}
+
+    <h2 class="sec">入口</h2>
+    <ul>${entries.map(e=>`<li>${e}</li>`).join('')}</ul>
+
+    <h2 class="sec">出口</h2>
+    <ul>${exits.map(e=>`<li>${e}</li>`).join('')}</ul>
+
+    <h2 class="sec">基地、前哨与社区</h2>
+    <ul>${groups.map(g=>`<li>${g}</li>`).join('')}</ul>
+
+    <h2 class="sec">资源</h2>
+    ${resText}
+
+    <h2 class="sec">附加备注</h2>
+    ${notes.map(n=>`<blockquote>${n}</blockquote>`).join('')}
+
+    <p style="text-align:center;color:#999;margin-top:24px;font-size:12px">
+      ━━ 条目记录人：流浪者编号 #${randInt(1000,9999)} ━━<br>
+      档案归属：The Backrooms Archive · 由「后室条目创造器」生成
+    </p>
+  `;
+  document.getElementById('output').innerHTML = html;
+}
+
+function randInt(a,b){return a+Math.floor(Math.random()*(b-a+1))}
+function randName(){
+  const a=['黎明','寂静','回声','迷雾','灯塔','黄沙','余烬','晨曦','静默','远岸'];
+  const b=['驿站','哨所','营地','前哨','据点','节点'];
+  return a[randInt(0,a.length-1)]+b[randInt(0,b.length-1)];
+}
+
+function copyArticle(){
+  const text = document.getElementById('output').innerText;
+  if(!text.trim() || text.includes('选择基底环境')){
+    alert('请先生成条目');return;
+  }
+  navigator.clipboard.writeText(text).then(()=>{
+    alert('✓ 已复制到剪贴板');
+  }).catch(()=>{
+    // fallback
+    const ta=document.createElement('textarea');
+    ta.value=text;document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);
+    alert('✓ 已复制');
+  });
+}
+function downloadArticle(){
+  const out = document.getElementById('output');
+  if(out.innerText.includes('选择基底环境')){alert('请先生成条目');return}
+  const num = document.getElementById('lvlNum').value || 'X';
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Level ${num}</title>
+<style>body{font-family:"Microsoft YaHei",sans-serif;max-width:760px;margin:30px auto;padding:0 20px;color:#222;line-height:1.7}
+h1{text-align:center;color:#900;border-bottom:2px solid #900;padding-bottom:8px}
+h2{color:#444;border-bottom:1px solid #aaa;padding-bottom:3px;margin-top:24px}
+.meta{background:#f0ead2;border:1px solid #c0b888;padding:10px 14px;margin:10px 0}
+.danger-class{display:inline-block;padding:2px 8px;color:#fff;font-weight:bold;margin-right:6px}
+.dc-safe{background:#3a8a3a}.dc-unsafe{background:#e89938}.dc-danger{background:#c44}.dc-extreme{background:#000}
+blockquote{border-left:3px solid #c0b888;padding:6px 12px;background:#faf6e0;font-style:italic;color:#555}
+</style></head><body>${out.innerHTML}</body></html>`;
+  const blob = new Blob([html],{type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `Level_${num}.html`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+/* 初始化 */
+renderChips();
+</script>
+</body>
+</html>
